@@ -2,7 +2,8 @@ module Snopt
 
 export snopt
 
-const snoptlib = "/usr/local/lib/libsnopt_c.dylib"
+const snoptlib = "/usr/local/lib/libsnopt_c.so"
+# const snoptlib = "/usr/local/lib/libsnopt_c.dylib"
 
 const codes = Dict{Int64, String}()
 codes[1] = "Finished successfully: optimality conditions satisfied"
@@ -240,80 +241,80 @@ function snopt(fun, x0, lb, ub, options;
     if sumerr[1] != 0
         println("failed to open summary file")
     end
-    
+
     # temporary working arrays
-    
+
     ltmpcw = 500
     cw = Array{Cchar}(ltmpcw*8)
-    
+
     ltmpiw = 500
     iw = Array{Clong}(ltmpiw)
-    
+
     ltmprw = 500
     rw = Array{Cdouble}(ltmprw)
-        
+
     # --- initialize ----
     ccall( (:sninit_, snoptlib), Void,
         (Ref{Clong}, Ref{Clong}, Ptr{Cchar}, Ref{Clong}, Ptr{Clong},
         Ref{Clong}, Ptr{Cdouble}, Ref{Clong}, Clong),
         iprint, isumm, cw, ltmpcw, iw,
         ltmpiw, rw, ltmprw, sizeof(cw))
-    
+
     # --- set options ----
     errors = Clong[0]
-    
+
     for key in keys(options)
         value = options[key]
         buffer = string(key, repeat(" ", 55-length(key)))  # buffer length is 55 so pad with space.
-    
+
         if length(key) > 55
             println("warning: invalid option, too long")
             continue
         end
-    
+
         errors[1] = 0
-    
+
         if typeof(value) == String
-    
+
             value = string(value, repeat(" ", 72-length(value)))
-    
+
             ccall( (:snset_, snoptlib), Void,
                 (Cstring, Ref{Clong}, Ref{Clong}, Ptr{Clong},
                 Ptr{Cchar}, Ref{Clong}, Ptr{Clong}, Ref{Clong}, Ptr{Cdouble}, Ref{Clong}, Clong, Clong),
                 value, iprint, isumm, errors,
                 cw, ltmpcw, iw, ltmpiw, rw, ltmprw, sizeof(buffer), sizeof(cw))
-    
+
         elseif isinteger(value)
-    
+
             ccall( (:snseti_, snoptlib), Void,
                 (Cstring, Ref{Clong}, Ref{Clong}, Ref{Clong}, Ptr{Clong},
                 Ptr{Cchar}, Ref{Clong}, Ptr{Clong}, Ref{Clong}, Ptr{Cdouble}, Ref{Clong}, Clong, Clong),
                 buffer, value, iprint, isumm, errors,
                 cw, ltmpcw, iw, ltmpiw, rw, ltmprw, sizeof(buffer), sizeof(cw))
-    
+
         elseif isreal(value)
-    
+
             ccall( (:snsetr_, snoptlib), Void,
                 (Cstring, Ref{Cdouble}, Ref{Clong}, Ref{Clong}, Ptr{Clong},
                 Ptr{Cchar}, Ref{Clong}, Ptr{Clong}, Ref{Clong}, Ptr{Cdouble}, Ref{Clong}, Clong, Clong),
                 buffer, value, iprint, isumm, errors,
                 cw, ltmpcw, iw, ltmpiw, rw, ltmprw, sizeof(buffer), sizeof(cw))
         end
-    
+
         # println(errors[1])
-    
+
     end
-    
+
     # --- set memory requirements --- #
     ccall( (:snmema_, snoptlib), Void,
         (Ptr{Clong}, Ref{Clong}, Ref{Clong}, Ref{Clong}, Ref{Clong}, Ref{Clong}, Ref{Clong},
         Ptr{Clong}, Ptr{Clong}, Ptr{Clong},
         Ptr{Cchar}, Ref{Clong}, Ptr{Clong}, Ref{Clong}, Ptr{Cdouble}, Ref{Clong}, Clong),
-        INFO, nF, n, nxname, nFname, 
+        INFO, nF, n, nxname, nFname,
         neA, neG,
         mincw, miniw, minrw,
         cw, ltmpcw, iw, ltmpiw, rw, ltmprw, sizeof(cw))
-    
+
     # --- resize arrays to match memory requirements
     lencw = mincw
     resize!(cw,lencw[1]*8)
@@ -321,7 +322,7 @@ function snopt(fun, x0, lb, ub, options;
     resize!(iw,leniw[1])
     lenrw = minrw
     resize!(rw,lenrw[1])
-    
+
     memkey = ("Total character workspace", "Total integer   workspace",
         "Total real      workspace")
     memvalue = (lencw,leniw,lenrw)
@@ -334,33 +335,33 @@ function snopt(fun, x0, lb, ub, options;
             buffer, value, iprint, isumm, errors,
             cw, ltmpcw, iw, ltmpiw, rw, ltmprw, sizeof(buffer), sizeof(cw))
     end
-    
+
     # --- call snopta ----
     ccall( (:snopta_, snoptlib), Void,
         (Ref{Clong}, Ref{Clong}, Ref{Clong}, Ref{Clong}, Ref{Clong},Ref{Cdouble},
         Ref{Clong}, Cstring, Ptr{Void}, Ptr{Clong}, Ptr{Clong}, Ref{Clong},
         Ref{Clong}, Ptr{Cdouble}, Ptr{Clong}, Ptr{Clong}, Ref{Clong}, Ref{Clong},
         Ptr{Cdouble}, Ptr{Cdouble}, Ptr{Cchar}, Ptr{Cdouble}, Ptr{Cdouble}, Ptr{Cchar},
-        Ptr{Cdouble}, Ptr{Clong}, Ptr{Cdouble}, 
+        Ptr{Cdouble}, Ptr{Clong}, Ptr{Cdouble},
         Ptr{Cdouble}, Ptr{Clong},
         Ptr{Cdouble}, Ptr{Clong}, Ptr{Clong}, Ptr{Clong}, Ptr{Clong}, Ptr{Clong},
         Ptr{Clong}, Ptr{Cdouble}, Ptr{Cchar}, Ref{Clong}, Ptr{Clong}, Ref{Clong},
         Ptr{Cdouble}, Ref{Clong}, Ptr{Cchar}, Ref{Clong}, Ptr{Clong}, Ref{Clong},
-        Ptr{Cdouble}, Ref{Clong}, 
+        Ptr{Cdouble}, Ref{Clong},
         Clong, Clong, Clong, Clong, Clong),
         Start, nF, n, nxname, nFname, ObjAdd,
         ObjRow, Prob, usrfun, iAfun, jAvar, lenA,
         neA, A, iGfun, jGvar, lenG, neG,
-        xlow, xupp, xnames, Flow, Fupp, Fnames, 
+        xlow, xupp, xnames, Flow, Fupp, Fnames,
         x, xstate, xmul, F, Fstate,
         Fmul, INFO, mincw, miniw, minrw, nS,
         nInf, sInf, cu, lencu, iu, leniu,
         ru, lenru, cw, lencw, iw, leniw,
         rw, lenrw,
         sizeof(Prob),sizeof(xnames),sizeof(Fnames),sizeof(cu),sizeof(cw))
-    
+
     # println("done")
-    
+
     # close output files
     ccall( (:snclose_, snoptlib), Void,
         (Ref{Clong},),
@@ -368,7 +369,7 @@ function snopt(fun, x0, lb, ub, options;
     ccall( (:snclose_, snoptlib), Void,
         (Ref{Clong},),
         isumm)
-    
+
     return x, F[1], codes[INFO[1]]  # xstar, fstar, info
 
 end
